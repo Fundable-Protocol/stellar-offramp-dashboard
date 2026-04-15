@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+@theme {
+  --font-inter: "Inter", ui-sans-serif, system-ui, sans-serif;
+  
+  --color-fundable-dark: #0d0019;
+  --color-fundable-mid-dark: #151617;
+  --color-fundable-grey: #4a4949;
+  --color-fundable-light-grey: #8792ab;
+  --color-fundable-mid-grey: #252939;
+  --color-fundable-placeholder: #4e5679;
+  --color-fundable-purple: #b102cd;
+  --color-fundable-purple-2: #8256ff;
+  --color-fundable-violet: #5b21b6;
+  --color-fundable-deep-purple: #440495;
+  --color-fundable-faint-white: #E1E1E1;
+
+  --color-background: #0d0019;
+  --color-foreground: #E1E1E1;
+  --color-border: #252939;
+}
+
+body {
+  background-color: black;
+  color: var(--color-foreground);
+  font-family: var(--font-inter);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+}
+
+@layer utilities {
+  .bg-fundable-gradient {
+    background: linear-gradient(
+      85deg,
+      #440495 30%,
+      #440495 100%,
+      #440495 40%
+    );
+  }
+
+  .bg-fundable-gradient:hover {
+    background: linear-gradient(
+      50deg,
+      color-mix(in oklab, #440495, white 10%) 30%,
+      color-mix(in oklab, #b102cd, white 10%) 100%,
+      color-mix(in oklab, #5b21b6, white 10%) 40%
+    );
+  }
+
+  .bg-fundable-gradient:active {
+    background: linear-gradient(
+      95deg,
+      color-mix(in oklab, #440495, white 20%) 30%,
+      color-mix(in oklab, #b102cd, white 20%) 100%,
+      color-mix(in oklab, #5b21b6, white 20%) 40%
+    );
+  }
+
+  .btn-wrapper {
+    @apply relative inline-flex overflow-hidden rounded-full;
+    padding: 2.5px;
+    height: 2.55rem;
+  }
+
+  .btn-grad {
+    @apply absolute -z-10;
+    top: -1000%;
+    right: -1000%;
+    bottom: -1000%;
+    left: -1000%;
+    animation: spin 5s linear infinite;
+    background: conic-gradient(from 90deg at 50% 50%, #440495 30%, #b102cd 50%, #5b21b6 100%);
+  }
+
+  .btn-bottom-grad {
+    @apply inline-flex h-full w-full cursor-pointer items-center justify-center rounded-full bg-black px-3 py-0.5 text-sm font-medium transition-colors;
+    color: #E1E1E1;
+  }
+  
+  .btn-bottom-grad:hover {
+    background-color: #151617;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.distribution-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #52525b #27272a;
+}
+.distribution-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+.distribution-scrollbar::-webkit-scrollbar-track {
+  background: #27272a;
+  border-radius: 4px;
+}
+.distribution-scrollbar::-webkit-scrollbar-thumb {
+  background: #52525b;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+.distribution-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #71717a;
+}
