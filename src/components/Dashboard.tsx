@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { Clock, DollarSign, Activity, Wallet, ArrowUpRight, RefreshCw, type LucideIcon } from 'lucide-react';
+import { DollarSign, Activity, Wallet, ArrowUpRight, RefreshCw, type LucideIcon } from 'lucide-react';
 import { useOfframpStats } from '../hooks/useOfframpData';
 import { formatCurrencyAbbr, formatNumber } from '../lib/formatters';
 import { StatCardSkeleton, TableSkeleton } from './Skeleton';
