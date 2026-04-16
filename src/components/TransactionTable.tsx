@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useRecentOfframps } from '../hooks/useOfframpData';
 import { formatCurrency, formatRelativeTime, truncateHash } from '../lib/formatters';
+import { TableSkeleton } from './Skeleton';
 import type { RecentOfframp } from '../types/api';
 
 const ITEMS_PER_PAGE = 10;
@@ -55,9 +56,9 @@ export default function TransactionTable() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
 
-  const { data: response, isFetching } = useRecentOfframps(page, ITEMS_PER_PAGE);
-  const transactions = response.data;
-  const meta = response.meta;
+  const { data: response, isLoading, isFetching } = useRecentOfframps(page, ITEMS_PER_PAGE);
+  const transactions = response?.data ?? [];
+  const meta = response?.meta;
 
   const columns = useMemo(
     () => [
@@ -163,7 +164,11 @@ export default function TransactionTable() {
         </div>
       </div>
 
-      {transactions.length === 0 ? (
+      {isLoading ? (
+        <div className="px-2 py-2">
+          <TableSkeleton rows={5} />
+        </div>
+      ) : transactions.length === 0 ? (
         <div className="flex items-center justify-center py-16 text-fundable-light-grey">
           <span className="text-sm">No transactions found.</span>
         </div>
@@ -215,20 +220,20 @@ export default function TransactionTable() {
           {/* Pagination Footer */}
           <div className="px-5 py-3 border-t border-white/[0.04] flex justify-between items-center text-xs text-fundable-light-grey">
             <span>
-              Page {meta.currentPage} of {meta.totalPages}
-              <span className="hidden sm:inline"> &middot; {meta.totalRows} total transactions</span>
+              Page {meta?.currentPage ?? 1} of {meta?.totalPages ?? 1}
+              <span className="hidden sm:inline"> &middot; {meta?.totalRows ?? 0} total transactions</span>
             </span>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={meta.prevPage === null}
+                disabled={meta?.prevPage === null}
                 className="p-1.5 rounded-lg hover:bg-white/[0.06] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setPage((p) => p + 1)}
-                disabled={meta.nextPage === null}
+                disabled={meta?.nextPage === null}
                 className="p-1.5 rounded-lg hover:bg-white/[0.06] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRight className="w-4 h-4" />

@@ -1,4 +1,4 @@
-import { useSuspenseQuery, keepPreviousData } from '@tanstack/react-query';
+import { useSuspenseQuery, useQuery, keepPreviousData } from '@tanstack/react-query';
 import { fetchOfframpStats, fetchRecentOfframps } from '../lib/api';
 
 export function useOfframpStats() {
@@ -11,7 +11,7 @@ export function useOfframpStats() {
 }
 
 export function useRecentOfframps(page: number, limit: number = 10) {
-  return useSuspenseQuery({
+  return useQuery({
     queryKey: ['recent-offramps', page, limit],
     queryFn: () => fetchRecentOfframps(page, limit),
     placeholderData: keepPreviousData,
