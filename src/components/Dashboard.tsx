@@ -1,4 +1,4 @@
-import React from 'react';
+// import React from 'react';
 import { ArrowUpRight, Activity, Wallet, DollarSign } from 'lucide-react';
 
 const mockTransactions = [
