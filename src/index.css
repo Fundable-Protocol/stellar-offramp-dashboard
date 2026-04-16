@@ -3,11 +3,11 @@
 @tailwind utilities;
 
 :root {
-  --color-fundable-dark: #0d0019;
-  --color-fundable-mid-dark: #151617;
+  --color-fundable-dark: #0a0014;
+  --color-fundable-mid-dark: #111118;
   --color-fundable-grey: #4a4949;
   --color-fundable-light-grey: #8792ab;
-  --color-fundable-mid-grey: #252939;
+  --color-fundable-mid-grey: #1a1a2e;
   --color-fundable-placeholder: #4e5679;
   --color-fundable-purple: #b102cd;
   --color-fundable-purple-2: #8256ff;
@@ -15,14 +15,14 @@
   --color-fundable-deep-purple: #440495;
   --color-fundable-faint-white: #E1E1E1;
 
-  --color-background: #0d0019;
+  --color-background: #0a0014;
   --color-foreground: #E1E1E1;
   --color-border: #252939;
   --font-inter: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
-  background-color: black;
+  background-color: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-inter);
 }
@@ -34,37 +34,44 @@ body {
 }
 
 @layer utilities {
+  /* Glass card effect */
+  .glass {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .glass-strong {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .glass-nav {
+    background: rgba(10, 0, 20, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
   .bg-fundable-gradient {
-    background: linear-gradient(
-      85deg,
-      #440495 30%,
-      #440495 100%,
-      #440495 40%
-    );
+    background: linear-gradient(135deg, #440495 0%, #b102cd 50%, #8256ff 100%);
   }
 
   .bg-fundable-gradient:hover {
     background: linear-gradient(
-      50deg,
-      color-mix(in oklab, #440495, white 10%) 30%,
-      color-mix(in oklab, #b102cd, white 10%) 100%,
-      color-mix(in oklab, #5b21b6, white 10%) 40%
-    );
-  }
-
-  .bg-fundable-gradient:active {
-    background: linear-gradient(
-      95deg,
-      color-mix(in oklab, #440495, white 20%) 30%,
-      color-mix(in oklab, #b102cd, white 20%) 100%,
-      color-mix(in oklab, #5b21b6, white 20%) 40%
+      135deg,
+      color-mix(in oklab, #440495, white 10%) 0%,
+      color-mix(in oklab, #b102cd, white 10%) 50%,
+      color-mix(in oklab, #8256ff, white 10%) 100%
     );
   }
 
   .btn-wrapper {
-    @apply relative inline-flex overflow-hidden rounded-full;
-    padding: 2.5px;
-    height: 2.55rem;
+    @apply relative inline-flex overflow-hidden rounded-xl;
+    padding: 1.5px;
   }
 
   .btn-grad {
@@ -74,16 +81,28 @@ body {
     bottom: -1000%;
     left: -1000%;
     animation: spin 5s linear infinite;
-    background: conic-gradient(from 90deg at 50% 50%, #440495 30%, #b102cd 50%, #5b21b6 100%);
+    background: conic-gradient(from 90deg at 50% 50%, #440495 0%, #b102cd 25%, #8256ff 50%, #6366f1 75%, #440495 100%);
   }
 
   .btn-bottom-grad {
-    @apply inline-flex h-full w-full cursor-pointer items-center justify-center rounded-full bg-black px-3 py-0.5 text-sm font-medium transition-colors;
+    @apply inline-flex h-full w-full cursor-pointer items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition-all;
+    background: rgba(10, 0, 20, 0.9);
     color: #E1E1E1;
   }
-  
+
   .btn-bottom-grad:hover {
-    background-color: #151617;
+    background: rgba(26, 26, 46, 0.9);
+  }
+
+  /* Gradient text */
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #8256ff 0%, #b102cd 50%, #6366f1 100%);
+  }
+
+  .text-gradient-hero {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #e0e7ff 0%, #c4b5fd 30%, #a78bfa 60%, #8256ff 100%);
   }
 }
 
@@ -93,22 +112,35 @@ body {
   }
 }
 
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Custom scrollbar */
 .distribution-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #52525b #27272a;
+  scrollbar-color: rgba(130, 86, 255, 0.3) transparent;
 }
 .distribution-scrollbar::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
+  height: 6px;
 }
 .distribution-scrollbar::-webkit-scrollbar-track {
-  background: #27272a;
+  background: transparent;
   border-radius: 4px;
 }
 .distribution-scrollbar::-webkit-scrollbar-thumb {
-  background: #52525b;
+  background: rgba(130, 86, 255, 0.3);
   border-radius: 4px;
-  transition: background-color 0.2s ease;
 }
 .distribution-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #71717a;
+  background: rgba(130, 86, 255, 0.5);
+}
+
+/* Recharts customization */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: rgba(255, 255, 255, 0.04);
 }
