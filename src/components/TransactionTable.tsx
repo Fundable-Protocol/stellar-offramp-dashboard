@@ -3,7 +3,6 @@ import {
   useReactTable,
   getCoreRowModel,
   getSortedRowModel,
-  getFilteredRowModel,
   flexRender,
   createColumnHelper,
   type SortingState,
@@ -11,189 +10,328 @@ import {
 import {
   ArrowUpRight,
   ArrowUpDown,
-  Search,
   ChevronLeft,
   ChevronRight,
-  Loader2,
 } from 'lucide-react';
-import { useRecentOfframps } from '../hooks/useOfframpData';
-import { formatCurrency, formatRelativeTime, truncateHash } from '../lib/formatters';
+import { useRecentDistributions, useRecentOfframps } from '../hooks/useOfframpData';
+import { formatCurrency, formatNumber, formatRelativeTime } from '../lib/formatters';
 import { TableSkeleton } from './Skeleton';
-import type { RecentOfframp } from '../types/api';
+import type { PaginationMeta, RecentDistribution, RecentOfframp } from '../types/api';
 
-const ITEMS_PER_PAGE = 10;
+const DEFAULT_ITEMS_PER_PAGE = 10;
+const perPageOptions = [10, 20, 50];
+
+type LedgerTab = 'offramps' | 'distributions';
+type LedgerRow =
+  | ({ type: 'offramp' } & RecentOfframp)
+  | ({ type: 'distribution' } & RecentDistribution);
+
+const tabs: Array<{ id: LedgerTab; label: string; emptyText: string }> = [
+  { id: 'offramps', label: 'Offramps', emptyText: 'No offramps found.' },
+  { id: 'distributions', label: 'Distributions', emptyText: 'No distributions found.' },
+];
 
 const assetStyles: Record<string, string> = {
-  USDC: 'bg-blue-500/15 text-blue-300 border-blue-500/20',
-  USDT: 'bg-teal-500/15 text-teal-300 border-teal-500/20',
-  XLM: 'bg-violet-500/15 text-violet-300 border-violet-500/20',
-  EURC: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20',
+  USDC: 'bg-sky-400/[0.08] text-sky-200 border-sky-300/20',
+  USDT: 'bg-teal-400/[0.08] text-teal-200 border-teal-300/20',
+  XLM: 'bg-violet-400/[0.08] text-violet-200 border-violet-300/20',
+  EURC: 'bg-emerald-400/[0.08] text-emerald-200 border-emerald-300/20',
 };
 
 const statusStyles: Record<string, { dot: string; badge: string }> = {
   completed: {
-    dot: 'bg-emerald-400',
-    badge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    dot: 'bg-emerald-300',
+    badge: 'bg-emerald-400/[0.08] text-emerald-200 border-emerald-300/20',
   },
   processing: {
-    dot: 'bg-amber-400 animate-pulse',
-    badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    dot: 'bg-amber-300 animate-pulse',
+    badge: 'bg-amber-400/[0.08] text-amber-200 border-amber-300/20',
   },
   pending: {
-    dot: 'bg-amber-400 animate-pulse',
-    badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    dot: 'bg-amber-300 animate-pulse',
+    badge: 'bg-amber-400/[0.08] text-amber-200 border-amber-300/20',
   },
   failed: {
-    dot: 'bg-red-400',
-    badge: 'bg-red-500/10 text-red-400 border-red-500/20',
+    dot: 'bg-rose-300',
+    badge: 'bg-rose-400/[0.08] text-rose-200 border-rose-300/20',
   },
 };
 
-const columnHelper = createColumnHelper<RecentOfframp>();
+const columnHelper = createColumnHelper<LedgerRow>();
 
-export default function TransactionTable() {
-  const [page, setPage] = useState(1);
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [globalFilter, setGlobalFilter] = useState('');
+function getTransactionHash(row: LedgerRow): string {
+  return row.type === 'offramp' ? row.tx_hash : row.transaction_hash;
+}
 
-  const { data: response, isLoading, isFetching } = useRecentOfframps(page, ITEMS_PER_PAGE);
-  const transactions = response?.data ?? [];
-  const meta = response?.meta;
+function getAsset(row: LedgerRow): string {
+  return row.type === 'offramp' ? row.token : row.token_symbol;
+}
 
-  const columns = useMemo(
-    () => [
-      columnHelper.accessor('tx_hash', {
-        header: 'Transaction Hash',
-        cell: (info) => (
-          <span className="text-fundable-purple-2 font-mono flex items-center gap-1.5 group-hover/row:text-white transition-colors">
-            {truncateHash(info.getValue())}
-            <ArrowUpRight className="w-3 h-3 opacity-0 group-hover/row:opacity-100 transition-opacity text-fundable-light-grey" />
-          </span>
-        ),
-      }),
-      columnHelper.accessor('token', {
-        header: 'Asset',
-        cell: (info) => {
-          const asset = info.getValue();
-          return (
-            <span
-              className={`inline-flex px-2 py-0.5 rounded-md text-xs font-medium border ${
-                assetStyles[asset] || 'bg-white/5 text-white border-white/10'
-              }`}
-            >
-              {asset}
-            </span>
-          );
-        },
-      }),
-      columnHelper.accessor('amount_usd', {
-        header: 'Amount',
-        cell: (info) => (
-          <span className="tabular-nums text-white font-semibold">
-            {formatCurrency(info.getValue())}
-          </span>
-        ),
-      }),
-      columnHelper.accessor('created_at', {
-        header: 'Time',
-        cell: (info) => (
-          <span className="text-fundable-light-grey">
-            {formatRelativeTime(info.getValue())}
-          </span>
-        ),
-      }),
-      columnHelper.accessor('status', {
-        header: 'Status',
-        cell: (info) => {
-          const status = info.getValue();
-          const style = statusStyles[status] || statusStyles.completed;
-          return (
-            <span
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border capitalize ${style.badge}`}
-            >
-              <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
-              {status}
-            </span>
-          );
-        },
-      }),
-    ],
-    []
-  );
+function getVerificationUrl(row: LedgerRow): string {
+  const hash = getTransactionHash(row);
 
-  const table = useReactTable({
-    data: transactions,
-    columns,
-    state: { sorting, globalFilter },
-    onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-  });
+  if (row.type === 'distribution' && row.chain_name.toLowerCase().includes('bnb')) {
+    return `https://bscscan.com/tx/${encodeURIComponent(hash)}`;
+  }
+
+  return `https://stellar.expert/explorer/public/tx/${encodeURIComponent(hash)}`;
+}
+
+function truncateTransactionHash(hash: string): string {
+  if (hash.length <= 21) return hash;
+  return `${hash.slice(0, 12)}...${hash.slice(-6)}`;
+}
+
+function formatStatusLabel(status: string): string {
+  return status.toLowerCase().replaceAll('_', ' ');
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const normalizedStatus = status.toLowerCase();
+  const style = statusStyles[normalizedStatus] || statusStyles.completed;
 
   return (
-    <div className="glass rounded-2xl overflow-hidden">
-      {/* Table Header */}
-      <div className="px-5 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-white/[0.06]">
-        <h2 className="text-base font-semibold flex items-center gap-2.5">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium capitalize ${style.badge}`}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
+      {formatStatusLabel(status)}
+    </span>
+  );
+}
+
+function AssetBadge({ asset }: { asset: string }) {
+  return (
+    <span
+      className={`inline-flex rounded-md border px-2 py-0.5 text-xs font-medium ${
+        assetStyles[asset] || 'bg-white/5 text-white border-white/10'
+      }`}
+    >
+      {asset}
+    </span>
+  );
+}
+
+function VerificationHash({ row }: { row: LedgerRow }) {
+  const hash = getTransactionHash(row);
+
+  return (
+    <a
+      href={getVerificationUrl(row)}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1.5 rounded-sm font-mono text-xs font-semibold text-fundable-purple-2 underline decoration-fundable-purple-2/40 underline-offset-4 transition-colors hover:text-white hover:decoration-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fundable-purple-2"
+      aria-label={`Verify transaction ${hash}`}
+    >
+      {truncateTransactionHash(hash)}
+      <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
+    </a>
+  );
+}
+
+export default function TransactionTable() {
+  const [activeTab, setActiveTab] = useState<LedgerTab>('offramps');
+  const [offrampPage, setOfframpPage] = useState(1);
+  const [distributionPage, setDistributionPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE);
+  const [sorting, setSorting] = useState<SortingState>([]);
+
+  const isOfframpTab = activeTab === 'offramps';
+  const activePage = isOfframpTab ? offrampPage : distributionPage;
+  const setActivePage = isOfframpTab ? setOfframpPage : setDistributionPage;
+
+  const offrampQuery = useRecentOfframps(offrampPage, itemsPerPage, isOfframpTab);
+  const distributionQuery = useRecentDistributions(distributionPage, itemsPerPage, !isOfframpTab);
+
+  const activeResponse = isOfframpTab ? offrampQuery.data : distributionQuery.data;
+  const isLoading = isOfframpTab ? offrampQuery.isLoading : distributionQuery.isLoading;
+  const isFetching = isOfframpTab ? offrampQuery.isFetching : distributionQuery.isFetching;
+  const meta: PaginationMeta | undefined = activeResponse?.meta;
+  const activeTabConfig = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];
+
+  const rows: LedgerRow[] = useMemo(() => {
+    if (isOfframpTab) {
+      return (offrampQuery.data?.data ?? []).map((item) => ({
+        ...item,
+        type: 'offramp' as const,
+      }));
+    }
+
+    return (distributionQuery.data?.data ?? []).map((item) => ({
+      ...item,
+      type: 'distribution' as const,
+    }));
+  }, [distributionQuery.data?.data, isOfframpTab, offrampQuery.data?.data]);
+
+  const columns = useMemo(() => {
+    const baseColumns = [
+      columnHelper.accessor((row) => getTransactionHash(row), {
+        id: 'transaction_hash',
+        header: 'Transaction Hash',
+        cell: ({ row }) => <VerificationHash row={row.original} />,
+      }),
+      columnHelper.accessor((row) => getAsset(row), {
+        id: 'asset',
+        header: 'Asset',
+        cell: ({ row }) => <AssetBadge asset={getAsset(row.original)} />,
+      }),
+    ];
+
+    if (isOfframpTab) {
+      return [
+        ...baseColumns,
+        columnHelper.accessor((row) => (row.type === 'offramp' ? row.amount_usd : 0), {
+          id: 'amount_usd',
+          header: 'Amount',
+          cell: ({ row }) => (
+            <span className="font-semibold tabular-nums text-white">
+              {row.original.type === 'offramp' ? formatCurrency(row.original.amount_usd) : '--'}
+            </span>
+          ),
+        }),
+        columnHelper.accessor((row) => row.created_at, {
+          id: 'created_at',
+          header: 'Time',
+          cell: ({ row }) => (
+            <span className="text-fundable-light-grey">
+              {formatRelativeTime(row.original.created_at)}
+            </span>
+          ),
+        }),
+        columnHelper.accessor((row) => row.status, {
+          id: 'status',
+          header: 'Status',
+          cell: ({ row }) => <StatusBadge status={row.original.status} />,
+        }),
+      ];
+    }
+
+    return [
+      ...baseColumns,
+      columnHelper.accessor((row) => (row.type === 'distribution' ? row.total_usd_amount : ''), {
+        id: 'total_usd_amount',
+        header: 'Amount',
+        cell: ({ row }) => (
+          <span className="font-semibold tabular-nums text-white">
+            {row.original.type === 'distribution' ? formatCurrency(Number(row.original.total_usd_amount)) : '--'}
           </span>
-          Recent Offramps
-        </h2>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-fundable-light-grey" />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={globalFilter}
-              onChange={(e) => setGlobalFilter(e.target.value)}
-              className="bg-white/[0.04] border border-white/[0.06] rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-fundable-placeholder focus:outline-none focus:border-fundable-purple-2/40 transition-colors w-40"
-            />
-          </div>
-          <a
-            href="#"
-            className="text-xs font-medium text-fundable-purple-2 hover:text-white transition-colors flex items-center gap-1.5 bg-white/[0.04] px-3 py-1.5 rounded-lg border border-white/[0.06] hover:border-white/[0.12]"
-          >
-            View All On Explorer
-            <ArrowUpRight className="w-3 h-3" />
-          </a>
-        </div>
+        ),
+      }),
+      columnHelper.accessor((row) => (row.type === 'distribution' ? row.total_recipients : 0), {
+        id: 'total_recipients',
+        header: 'Recipients',
+        cell: ({ row }) => (
+          <span className="tabular-nums text-fundable-light-grey">
+            {row.original.type === 'distribution' ? formatNumber(row.original.total_recipients) : '--'}
+          </span>
+        ),
+      }),
+      columnHelper.accessor((row) => row.created_at, {
+        id: 'created_at',
+        header: 'Time',
+        cell: ({ row }) => (
+          <span className="text-fundable-light-grey">
+            {formatRelativeTime(row.original.created_at)}
+          </span>
+        ),
+      }),
+      columnHelper.accessor((row) => (row.type === 'distribution' ? row.chain_name : ''), {
+        id: 'chain_name',
+        header: 'Chain',
+        cell: ({ row }) => (
+          <span className="text-fundable-light-grey">
+            {row.original.type === 'distribution' ? row.original.chain_name : '--'}
+          </span>
+        ),
+      }),
+      columnHelper.accessor((row) => row.status, {
+        id: 'status',
+        header: 'Status',
+        cell: ({ row }) => <StatusBadge status={row.original.status} />,
+      }),
+    ];
+  }, [isOfframpTab]);
+
+  const table = useReactTable({
+    data: rows,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+
+  const handleTabChange = (tab: LedgerTab) => {
+    setActiveTab(tab);
+    setSorting([]);
+  };
+
+  const handleItemsPerPageChange = (value: string) => {
+    const nextLimit = Number(value);
+    setItemsPerPage(nextLimit);
+    setOfframpPage(1);
+    setDistributionPage(1);
+  };
+
+  return (
+    <section className="flex flex-col gap-3" aria-label="Recent activity">
+      <div className="flex border-b border-fundable-mid-grey" role="tablist" aria-label="Recent activity type">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => handleTabChange(tab.id)}
+              className={`relative px-4 pb-2 text-sm font-medium transition-colors ${
+                isActive
+                  ? 'text-white'
+                  : 'text-fundable-light-grey hover:text-white'
+              }`}
+            >
+              {tab.label}
+              {isActive && (
+                <span className="absolute inset-x-0 -bottom-px h-px bg-fundable-purple-2" />
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      {isLoading ? (
+      <div className="surface overflow-hidden rounded-xl">
+        <div className="border-b border-white/[0.07] px-5 py-4">
+          <h2 className="text-lg font-semibold tracking-tight text-white">
+            Recent {activeTabConfig.label}
+          </h2>
+        </div>
+
+      {isLoading || (isFetching && rows.length === 0) ? (
         <div className="px-2 py-2">
           <TableSkeleton rows={5} />
         </div>
-      ) : transactions.length === 0 ? (
+      ) : rows.length === 0 ? (
         <div className="flex items-center justify-center py-16 text-fundable-light-grey">
-          <span className="text-sm">No transactions found.</span>
+          <span className="text-sm">{activeTabConfig.emptyText}</span>
         </div>
       ) : (
         <>
-          {/* Table */}
-          <div className="overflow-x-auto distribution-scrollbar relative">
-            {isFetching && (
-              <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px] z-10 flex items-center justify-center">
-                <Loader2 className="w-5 h-5 animate-spin text-fundable-purple-2" />
-              </div>
-            )}
+          <div className={`relative max-h-[520px] overflow-auto distribution-scrollbar ${isFetching ? 'opacity-60' : ''}`}>
             <table className="w-full text-left text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10 bg-fundable-mid-dark">
                 {table.getHeaderGroups().map((headerGroup) => (
-                  <tr key={headerGroup.id} className="border-b border-white/[0.04]">
+                  <tr key={headerGroup.id} className="border-b border-white/[0.07] bg-white/[0.018]">
                     {headerGroup.headers.map((header) => (
                       <th
                         key={header.id}
-                        className="py-3 px-5 text-[10px] font-semibold text-fundable-light-grey uppercase tracking-widest cursor-pointer select-none hover:text-white transition-colors"
+                        className="cursor-pointer select-none px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-fundable-light-grey transition-colors hover:text-white"
                         onClick={header.column.getToggleSortingHandler()}
                       >
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1.5">
                           {flexRender(header.column.columnDef.header, header.getContext())}
-                          <ArrowUpDown className="w-3 h-3 opacity-40" />
+                          <ArrowUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />
                         </span>
                       </th>
                     ))}
@@ -204,10 +342,10 @@ export default function TransactionTable() {
                 {table.getRowModel().rows.map((row) => (
                   <tr
                     key={row.id}
-                    className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors group/row cursor-pointer"
+                    className="group/row border-b border-white/[0.045] transition-colors hover:bg-white/[0.025]"
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="py-3.5 px-5">
+                      <td key={cell.id} className="px-5 py-4">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}
@@ -217,31 +355,51 @@ export default function TransactionTable() {
             </table>
           </div>
 
-          {/* Pagination Footer */}
-          <div className="px-5 py-3 border-t border-white/[0.04] flex justify-between items-center text-xs text-fundable-light-grey">
-            <span>
-              Page {meta?.currentPage ?? 1} of {meta?.totalPages ?? 1}
-              <span className="hidden sm:inline"> &middot; {meta?.totalRows ?? 0} total transactions</span>
-            </span>
-            <div className="flex items-center gap-1">
+          <div className="flex flex-col gap-3 border-t border-white/[0.07] px-5 py-3 text-xs text-fundable-light-grey sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-3">
+              <span>
+                Page {meta?.currentPage ?? activePage} of {meta?.totalPages ?? 1}
+                <span className="hidden sm:inline"> &middot; {meta?.totalRows ?? 0} total {activeTabConfig.label.toLowerCase()}</span>
+              </span>
+              <label className="flex items-center gap-2">
+                Rows
+                <select
+                  value={itemsPerPage}
+                  onChange={(event) => handleItemsPerPageChange(event.target.value)}
+                  className="rounded-lg border border-transparent bg-transparent px-1.5 py-1 text-xs font-medium text-white transition-colors hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60"
+                >
+                  {perPageOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="flex items-center gap-1 self-end sm:self-auto">
               <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                type="button"
+                aria-label="Previous page"
+                onClick={() => setActivePage((p) => Math.max(1, p - 1))}
                 disabled={meta?.prevPage === null}
-                className="p-1.5 rounded-lg hover:bg-white/[0.06] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="rounded-lg p-1.5 transition-colors hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60 disabled:cursor-not-allowed disabled:opacity-30"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
               </button>
               <button
-                onClick={() => setPage((p) => p + 1)}
+                type="button"
+                aria-label="Next page"
+                onClick={() => setActivePage((p) => p + 1)}
                 disabled={meta?.nextPage === null}
-                className="p-1.5 rounded-lg hover:bg-white/[0.06] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="rounded-lg p-1.5 transition-colors hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60 disabled:cursor-not-allowed disabled:opacity-30"
               >
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
           </div>
         </>
       )}
-    </div>
+      </div>
+    </section>
   );
 }

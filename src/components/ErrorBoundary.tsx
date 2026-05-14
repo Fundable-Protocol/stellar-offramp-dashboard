@@ -34,23 +34,24 @@ export default class ErrorBoundary extends Component<Props, State> {
       if (this.props.fallback) return this.props.fallback;
 
       return (
-        <div className="glass rounded-2xl p-8 flex flex-col items-center justify-center gap-4 text-center">
-          <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center">
-            <AlertTriangle className="w-6 h-6 text-red-400" />
+        <div className="surface flex flex-col items-center justify-center gap-4 rounded-xl p-8 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-rose-300/20 bg-rose-400/[0.08]">
+            <AlertTriangle className="h-6 w-6 text-rose-200" aria-hidden="true" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-white mb-1">
+            <h3 className="mb-1 text-base font-semibold text-white">
               Something went wrong
             </h3>
-            <p className="text-sm text-fundable-light-grey max-w-md">
+            <p className="max-w-md text-sm text-fundable-light-grey">
               {this.state.error?.message || 'An unexpected error occurred while rendering this section.'}
             </p>
           </div>
           <button
+            type="button"
             onClick={this.handleReset}
-            className="flex items-center gap-2 text-xs font-medium text-fundable-purple-2 hover:text-white transition-colors bg-white/[0.04] px-4 py-2 rounded-lg border border-white/[0.06] hover:border-white/[0.12]"
+            className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.035] px-4 py-2 text-xs font-medium text-fundable-light-grey transition-colors hover:border-white/20 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
             Try again
           </button>
         </div>
