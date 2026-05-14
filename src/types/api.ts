@@ -3,6 +3,8 @@ export interface OfframpStats {
   totalTransactions: number;
   activeWallets: number;
   volume24h: number;
+  totalDistributionAmount: number;
+  totalDistributionCount: number;
 }
 
 export interface RecentOfframp {
@@ -11,6 +13,17 @@ export interface RecentOfframp {
   amount_usd: number;
   created_at: string;
   status: 'completed' | 'processing' | 'pending' | 'failed';
+}
+
+export interface RecentDistribution {
+  transaction_hash: string;
+  token_symbol: string;
+  total_usd_amount: number | string;
+  total_recipients: number;
+  created_at: string;
+  status: 'COMPLETED' | 'completed';
+  network: 'MAINNET' | string;
+  chain_name: string;
 }
 
 export interface PaginationMeta {
@@ -24,6 +37,11 @@ export interface PaginationMeta {
 
 export interface RecentOfframpsResponse {
   data: RecentOfframp[];
+  meta: PaginationMeta;
+}
+
+export interface RecentDistributionsResponse {
+  data: RecentDistribution[];
   meta: PaginationMeta;
 }
 
