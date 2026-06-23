@@ -67,11 +67,28 @@ function getAsset(row: LedgerRow): string {
   return row.type === 'offramp' ? row.token : row.token_symbol;
 }
 
+const CHAIN_EXPLORERS: Record<string, string> = {
+  stellar: 'https://stellar.expert/explorer/public/tx',
+  bsc: 'https://bscscan.com/tx',
+  polygon: 'https://polygonscan.com/tx',
+  base: 'https://basescan.org/tx',
+  lisk: 'https://blockscout.lisk.com/tx',
+  arbitrum: 'https://arbiscan.io/tx',
+  optimism: 'https://optimistic.etherscan.io/tx',
+  ethereum: 'https://etherscan.io/tx',
+  avalanche: 'https://snowtrace.io/tx',
+};
+
 function getVerificationUrl(row: LedgerRow): string {
   const hash = getTransactionHash(row);
 
   if (row.type === 'distribution' && row.chain_name.toLowerCase().includes('bnb')) {
     return `https://bscscan.com/tx/${encodeURIComponent(hash)}`;
+  }
+
+  if (row.type === 'offramp' && row.source_chain) {
+    const baseUrl = CHAIN_EXPLORERS[row.source_chain.toLowerCase()];
+    if (baseUrl) return `${baseUrl}/${encodeURIComponent(hash)}`;
   }
 
   return `https://stellar.expert/explorer/public/tx/${encodeURIComponent(hash)}`;

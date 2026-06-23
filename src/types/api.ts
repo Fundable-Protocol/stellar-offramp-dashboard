@@ -13,6 +13,7 @@ export interface RecentOfframp {
   amount_usd: number;
   created_at: string;
   status: 'completed' | 'processing' | 'pending' | 'failed';
+  source_chain: string | null;
 }
 
 export interface RecentDistribution {
