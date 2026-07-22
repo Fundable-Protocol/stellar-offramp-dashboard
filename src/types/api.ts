@@ -17,7 +17,7 @@ export interface RecentOfframp {
 }
 
 export interface RecentDistribution {
-  transaction_hash: string;
+  transaction_hash: string | null;
   token_symbol: string;
   total_usd_amount: number | string;
   total_recipients: number;

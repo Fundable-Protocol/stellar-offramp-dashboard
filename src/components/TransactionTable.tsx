@@ -59,7 +59,7 @@ const statusStyles: Record<string, { dot: string; badge: string }> = {
 
 const columnHelper = createColumnHelper<LedgerRow>();
 
-function getTransactionHash(row: LedgerRow): string {
+function getTransactionHash(row: LedgerRow): string | null {
   return row.type === 'offramp' ? row.tx_hash : row.transaction_hash;
 }
 
@@ -79,10 +79,11 @@ const CHAIN_EXPLORERS: Record<string, string> = {
   avalanche: 'https://snowtrace.io/tx',
 };
 
-function getVerificationUrl(row: LedgerRow): string {
+function getVerificationUrl(row: LedgerRow): string | null {
   const hash = getTransactionHash(row);
+  if (!hash) return null;
 
-  if (row.type === 'distribution' && row.chain_name.toLowerCase().includes('bnb')) {
+  if (row.type === 'distribution' && row.chain_name?.toLowerCase().includes('bnb')) {
     return `https://bscscan.com/tx/${encodeURIComponent(hash)}`;
   }
 
@@ -94,7 +95,8 @@ function getVerificationUrl(row: LedgerRow): string {
   return `https://stellar.expert/explorer/public/tx/${encodeURIComponent(hash)}`;
 }
 
-function truncateTransactionHash(hash: string): string {
+function truncateTransactionHash(hash: string | null): string {
+  if (!hash) return '--';
   if (hash.length <= 21) return hash;
   return `${hash.slice(0, 12)}...${hash.slice(-6)}`;
 }
@@ -131,10 +133,17 @@ function AssetBadge({ asset }: { asset: string }) {
 
 function VerificationHash({ row }: { row: LedgerRow }) {
   const hash = getTransactionHash(row);
+  const url = getVerificationUrl(row);
+
+  if (!hash || !url) {
+    return (
+      <span className="font-mono text-xs text-fundable-light-grey">--</span>
+    );
+  }
 
   return (
     <a
-      href={getVerificationUrl(row)}
+      href={url}
       target="_blank"
       rel="noopener noreferrer"
       className="inline-flex items-center gap-1.5 rounded-sm font-mono text-xs font-semibold text-fundable-purple-2 underline decoration-fundable-purple-2/40 underline-offset-4 transition-colors hover:text-white hover:decoration-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fundable-purple-2"
