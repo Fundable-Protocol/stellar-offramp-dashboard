@@ -68,31 +68,60 @@ function getAsset(row: LedgerRow): string {
 }
 
 const CHAIN_EXPLORERS: Record<string, string> = {
-  stellar: 'https://stellar.expert/explorer/public/tx',
-  bsc: 'https://bscscan.com/tx',
-  polygon: 'https://polygonscan.com/tx',
-  base: 'https://basescan.org/tx',
-  lisk: 'https://blockscout.lisk.com/tx',
-  arbitrum: 'https://arbiscan.io/tx',
-  optimism: 'https://optimistic.etherscan.io/tx',
-  ethereum: 'https://etherscan.io/tx',
-  avalanche: 'https://snowtrace.io/tx',
+  stellar:    'https://stellar.expert/explorer/public/tx',
+  bsc:        'https://bscscan.com/tx',
+  polygon:    'https://polygonscan.com/tx',
+  base:       'https://basescan.org/tx',
+  lisk:       'https://blockscout.lisk.com/tx',
+  arbitrum:   'https://arbiscan.io/tx',
+  optimism:   'https://optimistic.etherscan.io/tx',
+  ethereum:   'https://etherscan.io/tx',
+  avalanche:  'https://snowtrace.io/tx',
+  starknet:   'https://starkscan.co/tx',
 };
+
+// Maps every known variant (Paycrest dash-names, display names, numeric chain IDs) → canonical key
+const CHAIN_ALIASES: Record<string, string> = {
+  // Paycrest dash-separated names
+  'bnb-smart-chain':          'bsc',
+  'arbitrum-one':             'arbitrum',
+  // Display names (as stored in distribution chain_name)
+  'bnb smart chain':          'bsc',
+  'binance smart chain':      'bsc',
+  'arbitrum one':             'arbitrum',
+  'starknet sepolia testnet': 'starknet',
+  // Numeric chain IDs (Across bridge stores these as source_chain)
+  '1':     'ethereum',
+  '56':    'bsc',
+  '137':   'polygon',
+  '8453':  'base',
+  '1135':  'lisk',
+  '42161': 'arbitrum',
+  '10':    'optimism',
+  '43114': 'avalanche',
+};
+
+function resolveExplorerUrl(chainValue: string | null | undefined): string | null {
+  if (!chainValue) return null;
+  const normalized = chainValue.toLowerCase().trim();
+  const canonical = CHAIN_ALIASES[normalized] ?? normalized;
+  return CHAIN_EXPLORERS[canonical] ?? null;
+}
 
 function getVerificationUrl(row: LedgerRow): string | null {
   const hash = getTransactionHash(row);
   if (!hash) return null;
 
-  if (row.type === 'distribution' && row.chain_name?.toLowerCase().includes('bnb')) {
-    return `https://bscscan.com/tx/${encodeURIComponent(hash)}`;
-  }
+  const chainValue = row.type === 'distribution' ? row.chain_name : row.source_chain;
+  const explorerBase = resolveExplorerUrl(chainValue);
 
-  if (row.type === 'offramp' && row.source_chain) {
-    const baseUrl = CHAIN_EXPLORERS[row.source_chain.toLowerCase()];
-    if (baseUrl) return `${baseUrl}/${encodeURIComponent(hash)}`;
-  }
+  if (explorerBase) return `${explorerBase}/${encodeURIComponent(hash)}`;
 
-  return `https://stellar.expert/explorer/public/tx/${encodeURIComponent(hash)}`;
+  // Offramps originate from Stellar, so default there; for distributions on unknown chains show no link
+  if (row.type === 'offramp') {
+    return `https://stellar.expert/explorer/public/tx/${encodeURIComponent(hash)}`;
+  }
+  return null;
 }
 
 function truncateTransactionHash(hash: string | null): string {
