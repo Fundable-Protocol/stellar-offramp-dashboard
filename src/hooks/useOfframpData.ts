@@ -1,5 +1,5 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
-import { fetchOfframpStats, fetchRecentDistributions, fetchRecentOfframps } from '../lib/api';
+import { fetchOfframpStats, fetchRecentDistributions, fetchRecentOfframps, fetchRecentOnramps } from '../lib/api';
 import type { OfframpStats } from '../types/api';
 
 const DEFAULT_OFFRAMP_STATS: OfframpStats = {
@@ -9,6 +9,9 @@ const DEFAULT_OFFRAMP_STATS: OfframpStats = {
   volume24h: 0,
   totalDistributionAmount: 0,
   totalDistributionCount: 0,
+  totalOnrampVolume: 0,
+  totalOnrampTransactions: 0,
+  totalOnrampWallets: 0,
 };
 
 export function useOfframpStats() {
@@ -36,6 +39,16 @@ export function useRecentDistributions(page: number, limit: number = 10, enabled
   return useQuery({
     queryKey: ['recent-distributions', page, limit],
     queryFn: () => fetchRecentDistributions(page, limit),
+    enabled,
+    placeholderData: keepPreviousData,
+    staleTime: 15_000,
+  });
+}
+
+export function useRecentOnramps(page: number, limit: number = 10, enabled: boolean = true) {
+  return useQuery({
+    queryKey: ['recent-onramps', page, limit],
+    queryFn: () => fetchRecentOnramps(page, limit),
     enabled,
     placeholderData: keepPreviousData,
     staleTime: 15_000,

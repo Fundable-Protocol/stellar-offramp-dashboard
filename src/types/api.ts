@@ -5,6 +5,9 @@ export interface OfframpStats {
   volume24h: number;
   totalDistributionAmount: number;
   totalDistributionCount: number;
+  totalOnrampVolume: number;
+  totalOnrampTransactions: number;
+  totalOnrampWallets: number;
 }
 
 export interface RecentOfframp {
@@ -27,6 +30,19 @@ export interface RecentDistribution {
   chain_name: string;
 }
 
+export interface RecentOnramp {
+  tx_hash: string | null;
+  fiat_currency: string;
+  fiat_amount: number | string;
+  crypto_currency: string;
+  crypto_amount: number;
+  network: string;
+  rate: number | string | null;
+  status: 'settled' | string;
+  created_at: string;
+  settled_at: string | null;
+}
+
 export interface PaginationMeta {
   prevPage: number | null;
   currentPage: number;
@@ -43,6 +59,11 @@ export interface RecentOfframpsResponse {
 
 export interface RecentDistributionsResponse {
   data: RecentDistribution[];
+  meta: PaginationMeta;
+}
+
+export interface RecentOnrampsResponse {
+  data: RecentOnramp[];
   meta: PaginationMeta;
 }
 

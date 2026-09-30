@@ -2,6 +2,7 @@ import type {
   OfframpStats,
   RecentDistributionsResponse,
   RecentOfframpsResponse,
+  RecentOnrampsResponse,
   ApiResponse,
 } from "../types/api";
 
@@ -41,5 +42,14 @@ export function fetchRecentDistributions(
 ): Promise<RecentDistributionsResponse> {
   return apiFetch<RecentDistributionsResponse>(
     `/recent-distributions?page=${page}&limit=${limit}`,
+  );
+}
+
+export function fetchRecentOnramps(
+  page: number,
+  limit: number,
+): Promise<RecentOnrampsResponse> {
+  return apiFetch<RecentOnrampsResponse>(
+    `/recent-onramps?page=${page}&limit=${limit}`,
   );
 }

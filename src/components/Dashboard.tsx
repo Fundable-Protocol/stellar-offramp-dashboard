@@ -19,62 +19,67 @@ import type { OfframpStats } from '../types/api';
 
 interface StatCardConfig {
   label: string;
-  key: keyof OfframpStats;
+  keys: (keyof OfframpStats)[];
   icon: LucideIcon;
   accent: string;
   helper: string;
+  isCurrency: boolean;
 }
 
 const statCards: StatCardConfig[] = [
   {
-    label: 'Total Offramp',
-    key: 'totalVolume',
+    label: 'Total On/Offramp',
+    keys: ['totalVolume', 'totalOnrampVolume'],
     icon: DollarSign,
     accent: '#8256ff',
-    helper: 'Total offramp amount',
+    helper: 'Combined onramp and offramp volume',
+    isCurrency: true,
   },
   {
     label: 'Transactions',
-    key: 'totalTransactions',
+    keys: ['totalTransactions', 'totalOnrampTransactions'],
     icon: Activity,
     accent: '#b102cd',
-    helper: 'Processed offramps',
+    helper: 'Processed onramps and offramps',
+    isCurrency: false,
   },
   {
     label: 'Active Wallets',
-    key: 'activeWallets',
+    keys: ['activeWallets', 'totalOnrampWallets'],
     icon: Wallet,
     accent: '#5b21b6',
-    helper: 'Wallets with activity',
+    helper: 'Wallets with on/offramp activity',
+    isCurrency: false,
   },
   {
     label: '24h Volume',
-    key: 'volume24h',
+    keys: ['volume24h'],
     icon: ArrowUpRight,
     accent: '#8256ff',
     helper: 'Processed in the last 24 hours',
+    isCurrency: true,
   },
   {
     label: 'Distribution',
-    key: 'totalDistributionAmount',
+    keys: ['totalDistributionAmount'],
     icon: HandCoins,
     accent: '#b102cd',
     helper: 'Total distribution amount',
+    isCurrency: true,
   },
   {
     label: 'Distribution Count',
-    key: 'totalDistributionCount',
+    keys: ['totalDistributionCount'],
     icon: Users,
     accent: '#5b21b6',
     helper: 'Completed distributions',
+    isCurrency: false,
   },
 ];
 
-function formatStatValue(key: StatCardConfig['key'], value: number): string {
-  if (key === 'totalVolume' || key === 'volume24h' || key === 'totalDistributionAmount') {
-    return formatCurrencyAbbr(value);
-  }
-  return formatNumber(value);
+function getStatValue(data: OfframpStats, card: StatCardConfig): string {
+  const total = card.keys.reduce((sum, key) => sum + data[key], 0);
+  return card.isCurrency ? formatCurrencyAbbr(total) : formatNumber(total);
 }
 
 function StatsCards() {
@@ -85,7 +90,7 @@ function StatsCards() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {statCards.map((stat) => (
           <div
-            key={stat.key}
+            key={stat.keys.join(',')}
             className="surface-soft relative overflow-hidden rounded-lg border-l-2 px-4 py-4 transition-colors hover:bg-fundable-mid-dark"
             style={{ borderLeftColor: stat.accent }}
           >
@@ -95,7 +100,7 @@ function StatsCards() {
                   {stat.label}
                 </p>
                 <p className="mt-2 text-xl font-semibold tracking-tight text-white tabular-nums">
-                  {formatStatValue(stat.key, data[stat.key])}
+                  {getStatValue(data, stat)}
                 </p>
               </div>
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black">
@@ -129,6 +134,7 @@ function StatsRefresh() {
           queryClient.invalidateQueries({ queryKey: ['offramp-stats'] }),
           queryClient.invalidateQueries({ queryKey: ['recent-offramps'] }),
           queryClient.invalidateQueries({ queryKey: ['recent-distributions'] }),
+          queryClient.invalidateQueries({ queryKey: ['recent-onramps'] }),
         ]);
       }}
       className="inline-flex items-center gap-2 self-start rounded-md border border-white/10 bg-white/[0.025] px-3 py-1.5 text-xs font-medium text-fundable-light-grey transition-colors hover:border-white/20 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60 sm:self-auto"
@@ -181,7 +187,7 @@ export default function Dashboard() {
             Transparency Dashboard
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-fundable-light-grey">
-            Fiat offramp volume, distribution, and recent settlement activity on Stellar.
+            Fiat offramp volume, onramp activity, distribution, and recent settlement activity on Stellar.
           </p>
         </div>
         <StatsRefresh />

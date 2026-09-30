@@ -13,21 +13,23 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import { useRecentDistributions, useRecentOfframps } from '../hooks/useOfframpData';
+import { useRecentDistributions, useRecentOfframps, useRecentOnramps } from '../hooks/useOfframpData';
 import { formatCurrency, formatNumber, formatRelativeTime } from '../lib/formatters';
 import { TableSkeleton } from './Skeleton';
-import type { PaginationMeta, RecentDistribution, RecentOfframp } from '../types/api';
+import type { PaginationMeta, RecentDistribution, RecentOfframp, RecentOnramp } from '../types/api';
 
 const DEFAULT_ITEMS_PER_PAGE = 10;
 const perPageOptions = [10, 20, 50];
 
-type LedgerTab = 'offramps' | 'distributions';
+type LedgerTab = 'offramps' | 'distributions' | 'onramps';
 type LedgerRow =
   | ({ type: 'offramp' } & RecentOfframp)
-  | ({ type: 'distribution' } & RecentDistribution);
+  | ({ type: 'distribution' } & RecentDistribution)
+  | ({ type: 'onramp' } & RecentOnramp);
 
 const tabs: Array<{ id: LedgerTab; label: string; emptyText: string }> = [
   { id: 'offramps', label: 'Offramps', emptyText: 'No offramps found.' },
+  { id: 'onramps', label: 'Onramps', emptyText: 'No onramps found.' },
   { id: 'distributions', label: 'Distributions', emptyText: 'No distributions found.' },
 ];
 
@@ -36,10 +38,15 @@ const assetStyles: Record<string, string> = {
   USDT: 'bg-teal-400/[0.08] text-teal-200 border-teal-300/20',
   XLM: 'bg-violet-400/[0.08] text-violet-200 border-violet-300/20',
   EURC: 'bg-emerald-400/[0.08] text-emerald-200 border-emerald-300/20',
+  NGN: 'bg-amber-400/[0.08] text-amber-200 border-amber-300/20',
 };
 
 const statusStyles: Record<string, { dot: string; badge: string }> = {
   completed: {
+    dot: 'bg-emerald-300',
+    badge: 'bg-emerald-400/[0.08] text-emerald-200 border-emerald-300/20',
+  },
+  settled: {
     dot: 'bg-emerald-300',
     badge: 'bg-emerald-400/[0.08] text-emerald-200 border-emerald-300/20',
   },
@@ -60,11 +67,15 @@ const statusStyles: Record<string, { dot: string; badge: string }> = {
 const columnHelper = createColumnHelper<LedgerRow>();
 
 function getTransactionHash(row: LedgerRow): string | null {
-  return row.type === 'offramp' ? row.tx_hash : row.transaction_hash;
+  if (row.type === 'offramp') return row.tx_hash;
+  if (row.type === 'distribution') return row.transaction_hash;
+  return row.tx_hash;
 }
 
 function getAsset(row: LedgerRow): string {
-  return row.type === 'offramp' ? row.token : row.token_symbol;
+  if (row.type === 'offramp') return row.token;
+  if (row.type === 'distribution') return row.token_symbol;
+  return row.crypto_currency;
 }
 
 const CHAIN_EXPLORERS: Record<string, string> = {
@@ -80,7 +91,7 @@ const CHAIN_EXPLORERS: Record<string, string> = {
   starknet:   'https://starkscan.co/tx',
 };
 
-// Maps every known variant (Paycrest dash-names, display names, numeric chain IDs) → canonical key
+// Maps every known variant (Paycrest dash-names, display names, numeric chain IDs) -> canonical key
 const CHAIN_ALIASES: Record<string, string> = {
   // Paycrest dash-separated names
   'bnb-smart-chain':          'bsc',
@@ -112,13 +123,16 @@ function getVerificationUrl(row: LedgerRow): string | null {
   const hash = getTransactionHash(row);
   if (!hash) return null;
 
-  const chainValue = row.type === 'distribution' ? row.chain_name : row.source_chain;
-  const explorerBase = resolveExplorerUrl(chainValue);
+  let chainValue: string | null = null;
+  if (row.type === 'distribution') chainValue = row.chain_name;
+  else if (row.type === 'offramp') chainValue = row.source_chain;
+  else chainValue = row.network;
 
+  const explorerBase = resolveExplorerUrl(chainValue);
   if (explorerBase) return `${explorerBase}/${encodeURIComponent(hash)}`;
 
-  // Offramps originate from Stellar, so default there; for distributions on unknown chains show no link
-  if (row.type === 'offramp') {
+  // Offramps and onramps originate from Stellar, so default there
+  if (row.type === 'offramp' || row.type === 'onramp') {
     return `https://stellar.expert/explorer/public/tx/${encodeURIComponent(hash)}`;
   }
   return null;
@@ -188,35 +202,56 @@ export default function TransactionTable() {
   const [activeTab, setActiveTab] = useState<LedgerTab>('offramps');
   const [offrampPage, setOfframpPage] = useState(1);
   const [distributionPage, setDistributionPage] = useState(1);
+  const [onrampPage, setOnrampPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE);
   const [sorting, setSorting] = useState<SortingState>([]);
 
-  const isOfframpTab = activeTab === 'offramps';
-  const activePage = isOfframpTab ? offrampPage : distributionPage;
-  const setActivePage = isOfframpTab ? setOfframpPage : setDistributionPage;
+  const activePage =
+    activeTab === 'offramps' ? offrampPage :
+    activeTab === 'onramps' ? onrampPage :
+    distributionPage;
+  const setActivePage =
+    activeTab === 'offramps' ? setOfframpPage :
+    activeTab === 'onramps' ? setOnrampPage :
+    setDistributionPage;
 
-  const offrampQuery = useRecentOfframps(offrampPage, itemsPerPage, isOfframpTab);
-  const distributionQuery = useRecentDistributions(distributionPage, itemsPerPage, !isOfframpTab);
+  const offrampQuery = useRecentOfframps(offrampPage, itemsPerPage, activeTab === 'offramps');
+  const distributionQuery = useRecentDistributions(distributionPage, itemsPerPage, activeTab === 'distributions');
+  const onrampQuery = useRecentOnramps(onrampPage, itemsPerPage, activeTab === 'onramps');
 
-  const activeResponse = isOfframpTab ? offrampQuery.data : distributionQuery.data;
-  const isLoading = isOfframpTab ? offrampQuery.isLoading : distributionQuery.isLoading;
-  const isFetching = isOfframpTab ? offrampQuery.isFetching : distributionQuery.isFetching;
+  const activeResponse =
+    activeTab === 'offramps' ? offrampQuery.data :
+    activeTab === 'onramps' ? onrampQuery.data :
+    distributionQuery.data;
+  const isLoading =
+    activeTab === 'offramps' ? offrampQuery.isLoading :
+    activeTab === 'onramps' ? onrampQuery.isLoading :
+    distributionQuery.isLoading;
+  const isFetching =
+    activeTab === 'offramps' ? offrampQuery.isFetching :
+    activeTab === 'onramps' ? onrampQuery.isFetching :
+    distributionQuery.isFetching;
   const meta: PaginationMeta | undefined = activeResponse?.meta;
   const activeTabConfig = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];
 
   const rows: LedgerRow[] = useMemo(() => {
-    if (isOfframpTab) {
+    if (activeTab === 'offramps') {
       return (offrampQuery.data?.data ?? []).map((item) => ({
         ...item,
         type: 'offramp' as const,
       }));
     }
-
+    if (activeTab === 'onramps') {
+      return (onrampQuery.data?.data ?? []).map((item) => ({
+        ...item,
+        type: 'onramp' as const,
+      }));
+    }
     return (distributionQuery.data?.data ?? []).map((item) => ({
       ...item,
       type: 'distribution' as const,
     }));
-  }, [distributionQuery.data?.data, isOfframpTab, offrampQuery.data?.data]);
+  }, [activeTab, distributionQuery.data?.data, offrampQuery.data?.data, onrampQuery.data?.data]);
 
   const columns = useMemo(() => {
     const baseColumns = [
@@ -232,7 +267,7 @@ export default function TransactionTable() {
       }),
     ];
 
-    if (isOfframpTab) {
+    if (activeTab === 'offramps') {
       return [
         ...baseColumns,
         columnHelper.accessor((row) => (row.type === 'offramp' ? row.amount_usd : 0), {
@@ -241,6 +276,35 @@ export default function TransactionTable() {
           cell: ({ row }) => (
             <span className="font-semibold tabular-nums text-white">
               {row.original.type === 'offramp' ? formatCurrency(row.original.amount_usd) : '--'}
+            </span>
+          ),
+        }),
+        columnHelper.accessor((row) => row.created_at, {
+          id: 'created_at',
+          header: 'Time',
+          cell: ({ row }) => (
+            <span className="text-fundable-light-grey">
+              {formatRelativeTime(row.original.created_at)}
+            </span>
+          ),
+        }),
+        columnHelper.accessor((row) => row.status, {
+          id: 'status',
+          header: 'Status',
+          cell: ({ row }) => <StatusBadge status={row.original.status} />,
+        }),
+      ];
+    }
+
+    if (activeTab === 'onramps') {
+      return [
+        ...baseColumns,
+        columnHelper.accessor((row) => (row.type === 'onramp' ? row.crypto_amount : 0), {
+          id: 'crypto_amount',
+          header: 'Amount',
+          cell: ({ row }) => (
+            <span className="font-semibold tabular-nums text-white">
+              {row.original.type === 'onramp' ? formatCurrency(row.original.crypto_amount) : '--'}
             </span>
           ),
         }),
@@ -305,7 +369,7 @@ export default function TransactionTable() {
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
       }),
     ];
-  }, [isOfframpTab]);
+  }, [activeTab]);
 
   const table = useReactTable({
     data: rows,
@@ -326,6 +390,7 @@ export default function TransactionTable() {
     setItemsPerPage(nextLimit);
     setOfframpPage(1);
     setDistributionPage(1);
+    setOnrampPage(1);
   };
 
   return (
